@@ -4,7 +4,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./layout/Layout";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
-import POS from "./pages/pos";
+import POS from "./pages/POS";
 import DineInManagement from "./pages/DineInManagement";
 import Customers from "./pages/Customers";
 import Inventory from "./pages/Inventory";
