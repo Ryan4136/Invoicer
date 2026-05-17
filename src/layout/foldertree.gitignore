@@ -1,0 +1,147 @@
+├── .gitignore
+├── api
+│   ├── brands
+│   │   ├── create.php
+│   │   ├── delete.php
+│   │   ├── list.php
+│   │   └── update.php
+│   ├── categories
+│   │   ├── create.php
+│   │   ├── delete.php
+│   │   ├── list.php
+│   │   └── update.php
+│   ├── company_settings.php
+│   ├── cors.php
+│   ├── customers
+│   │   └── list.php
+│   ├── db_connect.php
+│   ├── invoice
+│   │   └── print.php
+│   ├── login.php
+│   ├── logout.php
+│   ├── me.php
+│   ├── orders
+│   │   ├── create.php
+│   │   └── list.php
+│   ├── order_items
+│   │   ├── create.php
+│   │   └── list.php
+│   └── products
+│       ├── create.php
+│       ├── delete.php
+│       ├── list.php
+│       └── update.php
+├── components.json
+├── index.html
+├── jsconfig.json
+├── node_modules
+├── package-lock.json
+├── package.json
+├── postcss.config.cjs
+├── public
+│   └── manifest.json
+├── README.md
+├── src
+│   ├── api
+│   │   ├── base44Client.js
+│   │   └── orders
+│   ├── App.css
+│   ├── App.jsx
+│   ├── App.test.js
+│   ├── components
+│   │   ├── invoice
+│   │   │   ├── InvoiceLineItem.jsx
+│   │   │   ├── InvoicePrintView.jsx
+│   │   │   └── InvoiceSummary.jsx
+│   │   ├── InvoiceDialog.jsx
+│   │   ├── modals
+│   │   │   └── ImportModal.jsx
+│   │   ├── pos
+│   │   │   ├── POSCartItem.jsx
+│   │   │   ├── POSCartSummary.jsx
+│   │   │   └── POSKeypad.jsx
+│   │   └── ui
+│   │       ├── badge.jsx
+│   │       ├── button.jsx
+│   │       ├── card.jsx
+│   │       ├── checkbox.jsx
+│   │       ├── DataTable.jsx
+│   │       ├── dialog.jsx
+│   │       ├── dropdown-menu.jsx
+│   │       ├── ExportImportButtons.jsx
+│   │       ├── input.jsx
+│   │       ├── label.jsx
+│   │       ├── PageHeader.jsx
+│   │       ├── popover.jsx
+│   │       ├── progress.jsx
+│   │       ├── select.jsx
+│   │       ├── sidebar.jsx
+│   │       ├── skeleton.jsx
+│   │       ├── StatsCard.jsx
+│   │       ├── switch.jsx
+│   │       ├── table.jsx
+│   │       ├── tabs.jsx
+│   │       ├── textarea.jsx
+│   │       └── use-toast.jsx
+│   ├── index.css
+│   ├── jsconfig.json
+│   ├── layout
+│   │   └── Layout.jsx
+│   ├── lib
+│   │   └── utils.js
+│   ├── logo.svg
+│   ├── main.jsx
+│   ├── pages
+│   │   ├── AccountSettings.jsx
+│   │   ├── AdminPanel.jsx
+│   │   ├── AuditTrail.jsx
+│   │   ├── Backup.jsx
+│   │   ├── BackupRestore.jsx
+│   │   ├── Brands.jsx
+│   │   ├── Categories.jsx
+│   │   ├── CompanyManagement.jsx
+│   │   ├── CompanySettings.jsx
+│   │   ├── Customers.jsx
+│   │   ├── Dashboard.jsx
+│   │   ├── DineInManagement.jsx
+│   │   ├── expenses.jsx
+│   │   ├── Godowns.jsx
+│   │   ├── GSTReport.jsx
+│   │   ├── Inventory.jsx
+│   │   ├── Items.jsx
+│   │   ├── KitchenDisplay.jsx
+│   │   ├── LedgerReport.jsx
+│   │   ├── Login.jsx
+│   │   ├── MenuManagement.jsx
+│   │   ├── Orders.jsx
+│   │   ├── Payments.jsx
+│   │   ├── pos.jsx
+│   │   ├── Profile.jsx
+│   │   ├── PurchaseInvoice.jsx
+│   │   ├── PurchaseOrders.jsx
+│   │   ├── PurchaseReport.jsx
+│   │   ├── PurchaseReturns.jsx
+│   │   ├── Quotations.jsx
+│   │   ├── Receipts.jsx
+│   │   ├── Reports.jsx
+│   │   ├── Reservations.jsx
+│   │   ├── ryn.png
+│   │   ├── SalesInvoice.jsx
+│   │   ├── SalesReport.jsx
+│   │   ├── SalesReturns.jsx
+│   │   ├── Settings.jsx
+│   │   ├── Staff.jsx
+│   │   ├── StockAdjustment.jsx
+│   │   ├── StockReport.jsx
+│   │   ├── StockStatement.jsx
+│   │   ├── StockTransfer.jsx
+│   │   ├── Suppliers.jsx
+│   │   ├── Support.jsx
+│   │   ├── tables.jsx
+│   │   ├── Updates.jsx
+│   │   └── UserManagement.jsx
+│   └── utils
+│       ├── index.js
+│       └── index.ts
+├── tailwind.config.cjs
+└── vite.config.js
