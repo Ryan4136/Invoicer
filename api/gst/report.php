@@ -77,15 +77,26 @@ foreach ($sales as $sale) {
     $grand_total = (float)$sale['grand_total'];
 
     // B2B
-if (!empty($gstin) && strlen(trim($gstin)) == 15) {
+$gstin = trim($sale['clgstin'] ?? '');
+
+if (strlen($gstin) === 15) {
 
     $b2b[] = $sale;
 }
 
     // B2C LARGE
-    else if ($grand_total > 250000 && $is_igst == 1) {
-        $b2c_large[] = $sale;
-    }
+else if (
+
+    strlen($gstin) !== 15 &&
+
+    $grand_total > 250000 &&
+
+    $is_igst == 1
+
+) {
+
+    $b2c_large[] = $sale;
+}
 
     // B2C SMALL
     else {

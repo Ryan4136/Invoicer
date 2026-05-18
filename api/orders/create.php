@@ -5,7 +5,9 @@ require_once __DIR__ . "/../db_connect.php";
 $conn = new mysqli("localhost","root","","store");
 
 $data = json_decode(file_get_contents("php://input"), true);
-
+echo "<pre>";
+print_r($data);
+exit;
 // ✅ DEFINE IDS
 $companyId = $data['company_id'] ?? 1;
 $user_id   = $data['user_id'] ?? 1;
@@ -110,6 +112,102 @@ $newCounter = $counter + 1;
 $update = $conn->prepare("UPDATE company_settings SET invoice_counter = ? WHERE company_id = ?");
 $update->bind_param("ii", $newCounter, $companyId);
 $update->execute();
+$order_id = $conn->insert_id;
 
+// =========================
+// INSERT ORDER ITEMS
+// =========================
+
+$items = $data['items'] ?? [];
+
+foreach ($items as $item) {
+print_r($item);
+exit;
+    // PRODUCT DETAILS
+    $productStmt = $conn->prepare("
+SELECT product_name, hsn, gst_rate
+FROM product
+WHERE product_id = ?
+    ");
+
+    $productStmt->bind_param("i", $item['product_id'] ?? $item['id']);
+
+    $productStmt->execute();
+
+    $product = $productStmt->get_result()->fetch_assoc();
+if (!$product) {
+    continue;
+}
+$product_name = $product['product_name'] ?? '';
+
+$hsn_code = $product['hsn'] ?? '';
+
+$gst_rate = (float)($product['gst_rate'] ?? 0);
+
+    // TAX CALCULATION
+    $qty = (float)$item['quantity'];
+
+    $rate = (float)$item['rate'];
+
+    
+
+    $taxable_value = $qty * $rate;
+
+    $gst_amount = ($taxable_value * $gst_rate) / 100;
+
+    $cgst = $gst_amount / 2;
+
+    $sgst = $gst_amount / 2;
+
+    $igst = 0;
+
+    $total = $taxable_value + $gst_amount;
+
+    // INSERT ITEM
+    $itemStmt = $conn->prepare("
+
+        INSERT INTO order_item (
+
+            order_id,
+            product_id,
+            product_name,
+            hsn_code,
+            quantity,
+            rate,
+            gst_rate,
+            taxable_value,
+            cgst,
+            sgst,
+            igst,
+            total,
+            company_id
+
+        )
+
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+    ");
+
+    $itemStmt->bind_param(
+
+        "iissddddddddi",
+
+        $order_id,
+        $productId,
+        $product_name,
+        $hsn_code,
+        $qty,
+        $rate,
+        $gst_rate,
+        $taxable_value,
+        $cgst,
+        $sgst,
+        $igst,
+        $total,
+        $company_id
+    );
+
+    $itemStmt->execute();
+}
 echo json_encode(["order_id" => $conn->insert_id]);
 ?>

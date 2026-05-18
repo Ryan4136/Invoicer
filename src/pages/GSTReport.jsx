@@ -128,7 +128,7 @@ const gstr3bData = {
     { header: 'Invoice No', accessor: 'invoice_no' },
     { header: 'Invoice Date', render: (row) => format(new Date(row.order_date), 'dd/MM/yyyy') },
     { header: 'Customer Name', accessor: 'client_name' },
-    { header: 'GSTIN', accessor: 'customer_gstin', cellClassName: 'font-mono text-xs' },
+    { header: 'GSTIN', accessor: 'clgstin', cellClassName: 'font-mono text-xs' },
     { header: 'Place of Supply', accessor: 'place_of_supply' },
     { header: 'Invoice Value', render: (row) => formatCurrency(row.grand_total), cellClassName: 'text-right' },
     { header: 'Taxable Value', render: (row) => formatCurrency(row.taxable_amount), cellClassName: 'text-right' },
@@ -207,7 +207,16 @@ const hsnColumns = [
               })}
             </SelectContent>
           </Select>
-          <Button variant="outline" className="border-gray-200">
+          <Button
+  variant="outline"
+  className="border-gray-200"
+  onClick={() => {
+    window.open(
+      `http://localhost:8000/api/gst/export.php?month=${selectedMonth}`,
+      '_blank'
+    );
+  }}
+>
             <Download className="w-4 h-4 mr-2" />
             Export JSON
           </Button>
