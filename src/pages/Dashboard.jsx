@@ -59,7 +59,11 @@ const { data: categories = [] } = useQuery({
       credentials: 'include'
     });
     const json = await res.json();
-    return Array.isArray(json) ? json : [];
+    return Array.isArray(json.data)
+  ? json.data
+  : Array.isArray(json)
+  ? json
+  : [];json : [];
   }
 });
 
@@ -70,7 +74,11 @@ const { data: customers = [] } = useQuery({
       credentials: 'include'
     });
     const json = await res.json();
-    return Array.isArray(json) ? json : [];
+    return Array.isArray(json.data)
+  ? json.data
+  : Array.isArray(json)
+  ? json
+  : [];json : [];
   }
 });
 const [range, setRange] = useState('7d');

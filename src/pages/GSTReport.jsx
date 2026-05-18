@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,168 +24,96 @@ import {
   Users,
   Package
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 
 export default function GSTReport() {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [activeTab, setActiveTab] = useState('gstr1');
 
-  const { data: salesInvoices = [] } = useQuery({
-    queryKey: ['salesInvoices'],
-    queryFn: () => base44.entities.Invoice.filter({ invoice_type: 'sale' }, '-invoice_date'),
-  });
+const { data: gstData, isLoading } = useQuery({
 
-  const { data: purchaseInvoices = [] } = useQuery({
-    queryKey: ['purchaseInvoices'],
-    queryFn: () => base44.entities.Invoice.filter({ invoice_type: 'purchase' }, '-invoice_date'),
-  });
+  queryKey: ['gst-report', selectedMonth],
 
-  const { data: creditNotes = [] } = useQuery({
-    queryKey: ['creditNotes'],
-    queryFn: () => base44.entities.Invoice.filter({ invoice_type: 'credit_note' }, '-invoice_date'),
-  });
+  queryFn: async () => {
 
-  const { data: debitNotes = [] } = useQuery({
-    queryKey: ['debitNotes'],
-    queryFn: () => base44.entities.Invoice.filter({ invoice_type: 'debit_note' }, '-invoice_date'),
-  });
+    const response = await fetch(
+      `http://localhost:8000/api/gst/report.php?month=${selectedMonth}`
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch GST report');
+    }
+
+    return response.json();
+  }
+});
+
+const summary = gstData?.summary || {};
+
+const gstr1 = gstData?.gstr1 || {};
+
+const salesInvoices = gstData?.sales || [];
+
+const purchaseInvoices = gstData?.purchases || [];
+
+const creditNotes = gstData?.credit_notes || [];
+
+const debitNotes = gstData?.debit_notes || [];
+
+const hsnSummary = gstData?.hsn_summary || [];
+
 
   // Filter by selected month
-  const filteredSales = useMemo(() => {
-    const monthStart = startOfMonth(new Date(selectedMonth));
-    const monthEnd = endOfMonth(new Date(selectedMonth));
-    return salesInvoices.filter(inv => {
-      const invDate = parseISO(inv.invoice_date);
-      return invDate >= monthStart && invDate <= monthEnd;
-    });
-  }, [salesInvoices, selectedMonth]);
 
-  const filteredPurchases = useMemo(() => {
-    const monthStart = startOfMonth(new Date(selectedMonth));
-    const monthEnd = endOfMonth(new Date(selectedMonth));
-    return purchaseInvoices.filter(inv => {
-      const invDate = parseISO(inv.invoice_date);
-      return invDate >= monthStart && invDate <= monthEnd;
-    });
-  }, [purchaseInvoices, selectedMonth]);
 
-  const filteredCreditNotes = useMemo(() => {
-    const monthStart = startOfMonth(new Date(selectedMonth));
-    const monthEnd = endOfMonth(new Date(selectedMonth));
-    return creditNotes.filter(inv => {
-      const invDate = parseISO(inv.invoice_date);
-      return invDate >= monthStart && invDate <= monthEnd;
-    });
-  }, [creditNotes, selectedMonth]);
 
-  const filteredDebitNotes = useMemo(() => {
-    const monthStart = startOfMonth(new Date(selectedMonth));
-    const monthEnd = endOfMonth(new Date(selectedMonth));
-    return debitNotes.filter(inv => {
-      const invDate = parseISO(inv.invoice_date);
-      return invDate >= monthStart && invDate <= monthEnd;
-    });
-  }, [debitNotes, selectedMonth]);
+
 
   // GSTR-1 Classifications
-  const gstr1Data = useMemo(() => {
-    // B2B - Business to Business (with GSTIN)
-    const b2b = filteredSales.filter(inv => inv.customer_gstin && inv.customer_gstin.length === 15);
-    
-    // B2C Large - Sales > 2.5 lakhs to unregistered (interstate)
-    const b2cLarge = filteredSales.filter(inv => 
-      (!inv.customer_gstin || inv.customer_gstin.length !== 15) && 
-      inv.grand_total > 250000 && 
-      inv.is_igst
-    );
-    
-    // B2C Small - All other B2C sales
-    const b2cSmall = filteredSales.filter(inv => 
-      (!inv.customer_gstin || inv.customer_gstin.length !== 15) && 
-      (inv.grand_total <= 250000 || !inv.is_igst)
-    );
-    
-    return {
-      b2b,
-      b2cLarge,
-      b2cSmall,
-      creditNotes: filteredCreditNotes,
-      totalInvoices: filteredSales.length,
-      totalValue: filteredSales.reduce((sum, inv) => sum + (inv.grand_total || 0), 0)
-    };
-  }, [filteredSales, filteredCreditNotes]);
+const gstr1Data = {
+
+  b2b: gstr1.b2b || [],
+
+  b2cLarge: gstr1.b2c_large || [],
+
+  b2cSmall: gstr1.b2c_small || [],
+
+  creditNotes,
+
+  totalInvoices: salesInvoices.length,
+
+  totalValue: salesInvoices.reduce(
+    (sum, inv) => sum + Number(inv.grand_total || 0),
+    0
+  )
+};
 
   // GSTR-3B Summary
-  const gstr3bData = useMemo(() => {
-    // Outward Supplies
-    const outwardTaxable = filteredSales.reduce((sum, inv) => sum + (inv.taxable_amount || 0), 0);
-    const outputTax = filteredSales.reduce((sum, inv) => 
-      sum + (inv.cgst_total || 0) + (inv.sgst_total || 0) + (inv.igst_total || 0), 0
-    );
-    
-    // Inward Supplies (ITC)
-    const inwardTaxable = filteredPurchases.reduce((sum, inv) => sum + (inv.taxable_amount || 0), 0);
-    const inputTax = filteredPurchases.reduce((sum, inv) => 
-      sum + (inv.cgst_total || 0) + (inv.sgst_total || 0) + (inv.igst_total || 0), 0
-    );
-    
-    // Inter-state vs Intra-state
-    const interState = filteredSales.filter(inv => inv.is_igst);
-    const intraState = filteredSales.filter(inv => !inv.is_igst);
-    
-    const interStateTaxable = interState.reduce((sum, inv) => sum + (inv.taxable_amount || 0), 0);
-    const interStateIGST = interState.reduce((sum, inv) => sum + (inv.igst_total || 0), 0);
-    
-    const intraStateTaxable = intraState.reduce((sum, inv) => sum + (inv.taxable_amount || 0), 0);
-    const intraStateCGST = intraState.reduce((sum, inv) => sum + (inv.cgst_total || 0), 0);
-    const intraStateSGST = intraState.reduce((sum, inv) => sum + (inv.sgst_total || 0), 0);
-    
-    return {
-      outwardTaxable,
-      outputTax,
-      inwardTaxable,
-      inputTax,
-      netPayable: outputTax - inputTax,
-      interStateTaxable,
-      interStateIGST,
-      intraStateTaxable,
-      intraStateCGST,
-      intraStateSGST
-    };
-  }, [filteredSales, filteredPurchases]);
+const gstr3bData = {
+
+  outwardTaxable: Number(summary.outward_taxable || 0),
+
+  outputTax: Number(summary.output_tax || 0),
+
+  inwardTaxable: Number(summary.inward_taxable || 0),
+
+  inputTax: Number(summary.input_tax || 0),
+
+  netPayable: Number(summary.net_payable || 0),
+
+  interStateTaxable: Number(summary.interstate_taxable || 0),
+
+  interStateIGST: Number(summary.interstate_igst || 0),
+
+  intraStateTaxable: Number(summary.intrastate_taxable || 0),
+
+  intraStateCGST: Number(summary.intrastate_cgst || 0),
+
+  intraStateSGST: Number(summary.intrastate_sgst || 0),
+};
 
   // HSN Summary (GSTR-1)
-  const hsnSummary = useMemo(() => {
-    const hsnMap = {};
-    
-    filteredSales.forEach(inv => {
-      (inv.items || []).forEach(item => {
-        const hsn = item.hsn_code || 'NA';
-        if (!hsnMap[hsn]) {
-          hsnMap[hsn] = {
-            hsn_code: hsn,
-            description: item.item_name || '',
-            uqc: item.unit || 'PCS',
-            total_quantity: 0,
-            total_value: 0,
-            taxable_value: 0,
-            cgst: 0,
-            sgst: 0,
-            igst: 0,
-            rate: item.gst_rate || 0
-          };
-        }
-        hsnMap[hsn].total_quantity += item.quantity || 0;
-        hsnMap[hsn].total_value += item.total_amount || 0;
-        hsnMap[hsn].taxable_value += item.taxable_amount || 0;
-        hsnMap[hsn].cgst += item.cgst_amount || 0;
-        hsnMap[hsn].sgst += item.sgst_amount || 0;
-        hsnMap[hsn].igst += item.igst_amount || 0;
-      });
-    });
-    
-    return Object.values(hsnMap).sort((a, b) => b.total_value - a.total_value);
-  }, [filteredSales]);
+
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -198,8 +126,8 @@ export default function GSTReport() {
   // GSTR-1 Table Columns
   const b2bColumns = [
     { header: 'Invoice No', accessor: 'invoice_no' },
-    { header: 'Invoice Date', render: (row) => format(parseISO(row.invoice_date), 'dd/MM/yyyy') },
-    { header: 'Customer Name', accessor: 'customer_name' },
+    { header: 'Invoice Date', render: (row) => format(new Date(row.order_date), 'dd/MM/yyyy') },
+    { header: 'Customer Name', accessor: 'client_name' },
     { header: 'GSTIN', accessor: 'customer_gstin', cellClassName: 'font-mono text-xs' },
     { header: 'Place of Supply', accessor: 'place_of_supply' },
     { header: 'Invoice Value', render: (row) => formatCurrency(row.grand_total), cellClassName: 'text-right' },
@@ -209,24 +137,49 @@ export default function GSTReport() {
 
   const b2cLargeColumns = [
     { header: 'Invoice No', accessor: 'invoice_no' },
-    { header: 'Invoice Date', render: (row) => format(parseISO(row.invoice_date), 'dd/MM/yyyy') },
+    { header: 'Invoice Date', render: (row) => format(new Date(row.order_date), 'dd/MM/yyyy') },
     { header: 'Place of Supply', accessor: 'place_of_supply' },
     { header: 'Invoice Value', render: (row) => formatCurrency(row.grand_total), cellClassName: 'text-right' },
     { header: 'Taxable Value', render: (row) => formatCurrency(row.taxable_amount), cellClassName: 'text-right' },
     { header: 'IGST', render: (row) => formatCurrency(row.igst_total), cellClassName: 'text-right' }
   ];
 
-  const hsnColumns = [
-    { header: 'HSN Code', accessor: 'hsn_code', cellClassName: 'font-mono' },
-    { header: 'Description', accessor: 'description' },
-    { header: 'UQC', accessor: 'uqc' },
-    { header: 'Qty', render: (row) => row.total_quantity.toFixed(2), cellClassName: 'text-right' },
-    { header: 'Rate %', render: (row) => row.rate + '%', cellClassName: 'text-center' },
-    { header: 'Taxable Value', render: (row) => formatCurrency(row.taxable_value), cellClassName: 'text-right' },
-    { header: 'CGST', render: (row) => formatCurrency(row.cgst), cellClassName: 'text-right' },
-    { header: 'SGST', render: (row) => formatCurrency(row.sgst), cellClassName: 'text-right' },
-    { header: 'IGST', render: (row) => formatCurrency(row.igst), cellClassName: 'text-right' }
-  ];
+const hsnColumns = [
+
+  {
+    header: 'GST Rate',
+    render: (row) => `${row.gst_rate}%`
+  },
+
+  {
+    header: 'Taxable Value',
+    render: (row) => formatCurrency(row.taxable_value),
+    cellClassName: 'text-right'
+  },
+
+  {
+    header: 'CGST',
+    render: (row) => formatCurrency(row.cgst),
+    cellClassName: 'text-right'
+  },
+
+  {
+    header: 'SGST',
+    render: (row) => formatCurrency(row.sgst),
+    cellClassName: 'text-right'
+  },
+
+  {
+    header: 'IGST',
+    render: (row) => formatCurrency(row.igst),
+    cellClassName: 'text-right'
+  },
+
+  {
+    header: 'Invoices',
+    accessor: 'invoices'
+  }
+];
 
   return (
     <div className="space-y-6">
@@ -286,9 +239,9 @@ export default function GSTReport() {
         />
         <StatsCard
           title="Net GST Payable"
-          value={formatCurrency(gstr3bData.netPayable)}
+          value={formatCurrency(Math.abs(gstr3bData.netPayable))}
           icon={DollarSign}
-          subtitle={gstr3bData.netPayable >= 0 ? 'To be paid' : 'Refund'}
+          subtitle={gstr3bData.netPayable >= 0 ? 'To be paid' : 'Excess ITC'}
           gradient={gstr3bData.netPayable >= 0 ? 'from-red-500 to-rose-600' : 'from-green-500 to-emerald-600'}
         />
       </div>
@@ -399,14 +352,17 @@ export default function GSTReport() {
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-500">Total Taxable Value</p>
                   <p className="text-2xl font-bold text-[#0F1724]">
-                    {formatCurrency(gstr1Data.b2cSmall.reduce((s, i) => s + (i.taxable_amount || 0), 0))}
+                    {formatCurrency(gstr1Data.b2cSmall.reduce((s, i) => s + Number(i.taxable_amount || 0), 0))}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-500">Total Tax</p>
                   <p className="text-2xl font-bold text-[#0F1724]">
                     {formatCurrency(gstr1Data.b2cSmall.reduce((s, i) => 
-                      s + (i.cgst_total || 0) + (i.sgst_total || 0) + (i.igst_total || 0), 0
+                      s +
+Number(i.cgst_total || 0) +
+Number(i.sgst_total || 0) +
+Number(i.igst_total || 0), 0
                     ))}
                   </p>
                 </div>
@@ -415,7 +371,7 @@ export default function GSTReport() {
           </Card>
 
           {/* Credit/Debit Notes */}
-          {(filteredCreditNotes.length > 0 || filteredDebitNotes.length > 0) && (
+          {(creditNotes.length > 0 || debitNotes.length > 0) && (
             <Card className="border-0 shadow-[0_6px_18px_rgba(15,23,36,0.06)]">
               <CardHeader className="border-b border-gray-100">
                 <CardTitle className="text-lg">9B, 9C - Credit/Debit Notes</CardTitle>
@@ -424,16 +380,16 @@ export default function GSTReport() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-emerald-50 rounded-lg">
                     <p className="text-sm text-gray-500">Credit Notes (Sales Returns)</p>
-                    <p className="text-xl font-bold text-emerald-600">{filteredCreditNotes.length}</p>
+                    <p className="text-xl font-bold text-emerald-600">{creditNotes.length}</p>
                     <p className="text-sm text-gray-500 mt-1">
-                      {formatCurrency(filteredCreditNotes.reduce((s, i) => s + (i.grand_total || 0), 0))}
+                      {formatCurrency(creditNotes.reduce((s, i) => s + Number(i.grand_total || 0), 0))}
                     </p>
                   </div>
                   <div className="p-4 bg-amber-50 rounded-lg">
                     <p className="text-sm text-gray-500">Debit Notes (Purchase Returns)</p>
-                    <p className="text-xl font-bold text-amber-600">{filteredDebitNotes.length}</p>
+                    <p className="text-xl font-bold text-amber-600">{debitNotes.length}</p>
                     <p className="text-sm text-gray-500 mt-1">
-                      {formatCurrency(filteredDebitNotes.reduce((s, i) => s + (i.grand_total || 0), 0))}
+                      {formatCurrency(debitNotes.reduce((s, i) => s + Number(i.grand_total || 0), 0))}
                     </p>
                   </div>
                 </div>
@@ -495,19 +451,19 @@ export default function GSTReport() {
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm text-gray-500">IGST</p>
                   <p className="text-xl font-bold text-blue-600">
-                    {formatCurrency(filteredPurchases.reduce((s, i) => s + (i.igst_total || 0), 0))}
+                    {formatCurrency(purchaseInvoices.reduce((s, i) => s + Number(i.igst_total || 0), 0))}
                   </p>
                 </div>
                 <div className="p-4 bg-emerald-50 rounded-lg">
                   <p className="text-sm text-gray-500">CGST</p>
                   <p className="text-xl font-bold text-emerald-600">
-                    {formatCurrency(filteredPurchases.reduce((s, i) => s + (i.cgst_total || 0), 0))}
+                    {formatCurrency(gstr3bData.inputTax / 2)}
                   </p>
                 </div>
                 <div className="p-4 bg-purple-50 rounded-lg">
                   <p className="text-sm text-gray-500">SGST</p>
                   <p className="text-xl font-bold text-purple-600">
-                    {formatCurrency(filteredPurchases.reduce((s, i) => s + (i.sgst_total || 0), 0))}
+                    {formatCurrency(gstr3bData.inputTax / 2)}
                   </p>
                 </div>
                 <div className="p-4 bg-amber-50 rounded-lg">

@@ -6,11 +6,14 @@ $conn = new mysqli("localhost","root","","store");
 
 // ✅ GET QUERY PARAMS
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
+
+$report_mode = isset($_GET['report']) ? true : false;
 $search = $_GET['search'] ?? '';
 $status = $_GET['status'] ?? '';
-$from_date = $_GET['from_date'] ?? '';
-$to_date = $_GET['to_date'] ?? '';
+$start_date = $_GET['start_date'] ?? '';
+$end_date = $_GET['end_date'] ?? '';
 
 $offset = ($page - 1) * $limit;
 
@@ -34,16 +37,14 @@ if (!empty($search)) {
 }
 
 // 📅 DATE FILTER
-if (!empty($from_date)) {
-  $where .= " AND order_date >= ?";
-  $params[] = $from_date;
-  $types .= "s";
-}
+if (!empty($start_date) && !empty($end_date)) {
 
-if (!empty($to_date)) {
-  $where .= " AND order_date <= ?";
-  $params[] = $to_date;
-  $types .= "s";
+  $where .= " AND DATE(order_date) BETWEEN ? AND ?";
+
+  $params[] = $start_date;
+  $params[] = $end_date;
+
+  $types .= "ss";
 }
 
 // 📊 STATUS
@@ -54,35 +55,89 @@ if ($status !== '') {
 }
 
 // ✅ MAIN QUERY
-$sql = "SELECT * FROM orders $where ORDER BY order_id DESC LIMIT ? OFFSET ?";
-$params[] = $limit;
-$params[] = $offset;
-$types .= "ii";
+$sql = "
+SELECT *
+
+FROM orders
+
+$where
+
+ORDER BY order_id DESC
+
+";
+if (!$report_mode) {
+
+  $sql .= " LIMIT ? OFFSET ?";
+
+  $params[] = $limit;
+  $params[] = $offset;
+
+  $types .= "ii";
+}
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param($types, ...$params);
+
+if (!empty($types)) {
+    $stmt->bind_param($types, ...$params);
+}
+
 $stmt->execute();
 
 $result = $stmt->get_result();
 $data = [];
 
 while ($row = $result->fetch_assoc()) {
-  $data[] = $row;
+
+
+    // Convert payment status
+
+
+    $data[] = $row;
 }
 
 // ✅ TOTAL COUNT
 $countSql = "SELECT COUNT(*) as total FROM orders $where";
+
 $countStmt = $conn->prepare($countSql);
 
-// remove LIMIT + OFFSET types
-$countTypes = substr($types, 0, -2);
-$countParams = array_slice($params, 0, -2);
+// Use ONLY filter params (without pagination)
+$countParams = [];
+$countTypes = "";
+
+// SEARCH
+if (!empty($search)) {
+    $searchTerm = "%$search%";
+
+    $countParams[] = $searchTerm;
+    $countParams[] = $searchTerm;
+    $countParams[] = $searchTerm;
+
+    $countTypes .= "sss";
+}
+
+// DATE
+if (!empty($start_date) && !empty($end_date)) {
+
+    $countParams[] = $start_date;
+    $countParams[] = $end_date;
+
+    $countTypes .= "ss";
+}
+
+// STATUS
+if ($status !== '') {
+
+    $countParams[] = $status;
+
+    $countTypes .= "i";
+}
 
 if (!empty($countTypes)) {
-  $countStmt->bind_param($countTypes, ...$countParams);
+    $countStmt->bind_param($countTypes, ...$countParams);
 }
 
 $countStmt->execute();
+
 $countResult = $countStmt->get_result()->fetch_assoc();
 
 echo json_encode([

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,7 @@ import {
   Filter
 } from 'lucide-react';
 import { ExportButton } from '@/components/ui/ExportImportButtons';
-import { format, startOfMonth, endOfMonth, subDays, parseISO, isWithinInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subDays, parseISO  } from 'date-fns';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -46,15 +46,59 @@ export default function SalesReport() {
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
 
-  const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ['invoices', 'sale'],
-    queryFn: () => base44.entities.Invoice.filter({ invoice_type: 'sale' }, '-invoice_date'),
-  });
+const { data: invoices = [], isLoading } = useQuery({
+  queryKey: ['sales-report', startDate, endDate],
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ['customers'],
-    queryFn: () => base44.entities.Customer.list(),
-  });
+  queryFn: async () => {
+
+ const response = await fetch(
+  `http://localhost:8000/api/orders/list.php?report=1&start_date=${startDate}&end_date=${endDate}`
+);
+    if (!response.ok) {
+      throw new Error('Failed to fetch sales report');
+    }
+
+    const result = await response.json();
+
+    return (result.data || []).map(order => {
+
+  const due = Number(order.due || 0);
+  const grandTotal = Number(order.grand_total || 0);
+  const vat = Number(order.vat || 0);
+
+  let paymentStatus = 0;
+
+  if (due <= 0) {
+    paymentStatus = 1;
+
+  } else if (due < grandTotal) {
+    paymentStatus = 2;
+
+  } else {
+    paymentStatus = 0;
+  }
+
+  return {
+    ...order,
+
+    invoice_date: order.order_date,
+
+    customer_name: order.client_name,
+
+    balance_due: order.due,
+
+    cgst_total: vat / 2,
+
+    sgst_total: vat / 2,
+
+    igst_total: 0,
+
+    payment_status: paymentStatus
+  };
+});
+  }
+});
+
 
   // Handle date range changes
   const handleDateRangeChange = (range) => {
@@ -84,28 +128,32 @@ export default function SalesReport() {
   };
 
   // Filter invoices by date range
-  const filteredInvoices = useMemo(() => {
-    return invoices.filter(inv => {
-      if (!inv.invoice_date) return false;
-      const invDate = parseISO(inv.invoice_date);
-      return isWithinInterval(invDate, {
-        start: parseISO(startDate),
-        end: parseISO(endDate)
-      });
-    });
-  }, [invoices, startDate, endDate]);
+const filteredInvoices = invoices;
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const totalSales = filteredInvoices.reduce((sum, inv) => sum + (inv.grand_total || 0), 0);
-    const totalTax = filteredInvoices.reduce((sum, inv) => 
-      sum + (inv.cgst_total || 0) + (inv.sgst_total || 0) + (inv.igst_total || 0), 0);
+    const totalSales = filteredInvoices.reduce(
+  (sum, inv) => sum + Number(inv.grand_total || 0),
+  0
+);
+    const totalTax = filteredInvoices.reduce(
+  (sum, inv) =>
+    sum +
+    Number(inv.cgst_total || 0) +
+    Number(inv.sgst_total || 0) +
+    Number(inv.igst_total || 0),
+  0
+);
     const paidAmount = filteredInvoices
-      .filter(inv => inv.payment_status === 'paid')
-      .reduce((sum, inv) => sum + (inv.grand_total || 0), 0);
+      .filter(inv => inv.payment_status === 1)
+      .reduce((sum, inv) => sum + Number(inv.grand_total || 0), 0);
     const pendingAmount = filteredInvoices
-      .filter(inv => inv.payment_status !== 'paid')
-      .reduce((sum, inv) => sum + (inv.balance_due || inv.grand_total || 0), 0);
+      .filter(inv => inv.payment_status !== 1)
+      .reduce(
+  (sum, inv) =>
+    sum + Number(inv.balance_due || inv.grand_total || 0),
+  0
+);
     
     return {
       totalSales,
@@ -125,7 +173,7 @@ export default function SalesReport() {
       if (!dailyMap[date]) {
         dailyMap[date] = { date, sales: 0, count: 0 };
       }
-      dailyMap[date].sales += inv.grand_total || 0;
+      dailyMap[date].sales += Number(inv.grand_total || 0);
       dailyMap[date].count += 1;
     });
     return Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
@@ -139,7 +187,7 @@ export default function SalesReport() {
       if (!customerMap[name]) {
         customerMap[name] = { name, total: 0, count: 0 };
       }
-      customerMap[name].total += inv.grand_total || 0;
+      customerMap[name].total += Number(inv.grand_total || 0);
       customerMap[name].count += 1;
     });
     return Object.values(customerMap)
@@ -148,17 +196,66 @@ export default function SalesReport() {
   }, [filteredInvoices]);
 
   // Payment status breakdown
-  const paymentStatusData = useMemo(() => {
-    const statusMap = { paid: 0, partial: 0, unpaid: 0 };
-    filteredInvoices.forEach(inv => {
-      statusMap[inv.payment_status || 'unpaid'] += inv.grand_total || 0;
-    });
-    return [
-      { name: 'Paid', value: statusMap.paid, color: '#10b981' },
-      { name: 'Partial', value: statusMap.partial, color: '#f59e0b' },
-      { name: 'Unpaid', value: statusMap.unpaid, color: '#ef4444' },
-    ].filter(d => d.value > 0);
-  }, [filteredInvoices]);
+const paymentStatusData = useMemo(() => {
+
+  const statusMap = {
+    paid: {
+      amount: 0,
+      count: 0
+    },
+    partial: {
+      amount: 0,
+      count: 0
+    },
+    unpaid: {
+      amount: 0,
+      count: 0
+    }
+  };
+
+  filteredInvoices.forEach(inv => {
+
+    const amount = Number(inv.grand_total || 0);
+
+    if (inv.payment_status === 1) {
+
+      statusMap.paid.amount += amount;
+      statusMap.paid.count += 1;
+
+    } else if (inv.payment_status === 2) {
+
+      statusMap.partial.amount += amount;
+      statusMap.partial.count += 1;
+
+    } else {
+
+      statusMap.unpaid.amount += amount;
+      statusMap.unpaid.count += 1;
+    }
+  });
+
+  return [
+    {
+      name: 'Paid',
+      value: statusMap.paid.amount,
+      count: statusMap.paid.count,
+      color: '#10b981'
+    },
+    {
+      name: 'Partial',
+      value: statusMap.partial.amount,
+      count: statusMap.partial.count,
+      color: '#f59e0b'
+    },
+    {
+      name: 'Unpaid',
+      value: statusMap.unpaid.amount,
+      count: statusMap.unpaid.count,
+      color: '#ef4444'
+    },
+  ].filter(d => d.value > 0);
+
+}, [filteredInvoices]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -202,13 +299,19 @@ export default function SalesReport() {
       header: 'Status',
       render: (row) => (
         <Badge variant="secondary" className={
-          row.payment_status === 'paid' 
+          row.payment_status === 1 
             ? 'bg-emerald-100 text-emerald-700' 
-            : row.payment_status === 'partial'
+            : row.payment_status === 2
             ? 'bg-amber-100 text-amber-700'
             : 'bg-red-100 text-red-700'
         }>
-          {row.payment_status}
+          {
+  row.payment_status === 1
+    ? 'Paid'
+    : row.payment_status === 2
+    ? 'Partial'
+    : 'Unpaid'
+}
         </Badge>
       )
     }
@@ -303,7 +406,7 @@ export default function SalesReport() {
           title="Pending"
           value={formatCurrency(stats.pendingAmount)}
           icon={Users}
-          subtitle={`${filteredInvoices.filter(i => i.payment_status !== 'paid').length} invoices`}
+          subtitle={`${filteredInvoices.filter(i => i.payment_status !== 1).length} invoices`}
           gradient="from-amber-500 to-orange-600"
         />
       </div>
@@ -368,7 +471,12 @@ export default function SalesReport() {
                       <Cell key={index} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Tooltip
+  formatter={(value, name, props) => [
+    `${formatCurrency(value)} (${props.payload.count} invoices)`,
+    name
+  ]}
+/>
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -376,7 +484,12 @@ export default function SalesReport() {
               {paymentStatusData.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-xs text-gray-500">{item.name}</span>
+                  <div className="text-xs text-gray-500">
+  <p>{item.name}</p>
+  <p className="font-medium text-[#0F1724]">
+    {item.count} invoices
+  </p>
+</div>
                 </div>
               ))}
             </div>
@@ -396,7 +509,12 @@ export default function SalesReport() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis type="number" tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
                 <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value) => formatCurrency(value)} />
+                <Tooltip
+  formatter={(value, name, props) => [
+    `${formatCurrency(value)} (${props.payload.count} invoices)`,
+    name
+  ]}
+/>
                 <Bar dataKey="total" fill="#10b981" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>

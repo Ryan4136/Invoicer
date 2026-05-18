@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,10 +40,24 @@ export default function PurchaseReport() {
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
 
-  const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ['invoices', 'purchase'],
-    queryFn: () => base44.entities.Invoice.filter({ invoice_type: 'purchase' }, '-invoice_date'),
-  });
+const { data: invoices = [], isLoading } = useQuery({
+  queryKey: ['purchase-report', startDate, endDate],
+
+  queryFn: async () => {
+
+    const response = await fetch(
+      `http://localhost:8000/api/purchases/list.php?report=1&start_date=${startDate}&end_date=${endDate}`
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch purchases');
+    }
+
+    const result = await response.json();
+
+    return result.data || [];
+  }
+});
 
   const handleDateRangeChange = (range) => {
     setDateRange(range);
@@ -71,27 +85,22 @@ export default function PurchaseReport() {
     }
   };
 
-  const filteredInvoices = useMemo(() => {
-    return invoices.filter(inv => {
-      if (!inv.invoice_date) return false;
-      const invDate = parseISO(inv.invoice_date);
-      return isWithinInterval(invDate, {
-        start: parseISO(startDate),
-        end: parseISO(endDate)
-      });
-    });
-  }, [invoices, startDate, endDate]);
+const filteredInvoices = invoices;
 
   const stats = useMemo(() => {
-    const totalPurchases = filteredInvoices.reduce((sum, inv) => sum + (inv.grand_total || 0), 0);
+    const totalPurchases = filteredInvoices.reduce((sum, inv) => sum + Number(inv.grand_total || 0), 0);
     const totalTax = filteredInvoices.reduce((sum, inv) => 
       sum + (inv.cgst_total || 0) + (inv.sgst_total || 0) + (inv.igst_total || 0), 0);
     const paidAmount = filteredInvoices
-      .filter(inv => inv.payment_status === 'paid')
-      .reduce((sum, inv) => sum + (inv.grand_total || 0), 0);
-    const pendingAmount = filteredInvoices
-      .filter(inv => inv.payment_status !== 'paid')
-      .reduce((sum, inv) => sum + (inv.balance_due || inv.grand_total || 0), 0);
+      .filter(inv => inv.payment_status === 1)
+      .reduce((sum, inv) => sum + Number(inv.grand_total || 0), 0);
+const pendingAmount = filteredInvoices
+  .filter(inv => inv.payment_status !== 1)
+  .reduce(
+    (sum, inv) =>
+      sum + Number(inv.balance_due || inv.grand_total || 0),
+    0
+  );
     
     return {
       totalPurchases,
@@ -109,7 +118,7 @@ export default function PurchaseReport() {
       if (!dailyMap[date]) {
         dailyMap[date] = { date, purchases: 0, count: 0 };
       }
-      dailyMap[date].purchases += inv.grand_total || 0;
+      dailyMap[date].purchases += Number(inv.grand_total || 0);
       dailyMap[date].count += 1;
     });
     return Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
@@ -122,7 +131,7 @@ export default function PurchaseReport() {
       if (!supplierMap[name]) {
         supplierMap[name] = { name, total: 0, count: 0 };
       }
-      supplierMap[name].total += inv.grand_total || 0;
+      supplierMap[name].total += Number(inv.grand_total || 0);
       supplierMap[name].count += 1;
     });
     return Object.values(supplierMap)
@@ -172,13 +181,19 @@ export default function PurchaseReport() {
       header: 'Status',
       render: (row) => (
         <Badge variant="secondary" className={
-          row.payment_status === 'paid' 
+          row.payment_status === 1 
             ? 'bg-emerald-100 text-emerald-700' 
-            : row.payment_status === 'partial'
+            : row.payment_status === 2
             ? 'bg-amber-100 text-amber-700'
             : 'bg-red-100 text-red-700'
         }>
-          {row.payment_status}
+          {
+  row.payment_status === 1
+    ? 'Paid'
+    : row.payment_status === 2
+    ? 'Partial'
+    : 'Unpaid'
+}
         </Badge>
       )
     }
@@ -272,7 +287,7 @@ export default function PurchaseReport() {
           title="Pending"
           value={formatCurrency(stats.pendingAmount)}
           icon={Package}
-          subtitle={`${filteredInvoices.filter(i => i.payment_status !== 'paid').length} invoices`}
+          subtitle={`${filteredInvoices.filter(i => i.payment_status !== 1).length} invoices`}
           gradient="from-amber-500 to-orange-600"
         />
       </div>
