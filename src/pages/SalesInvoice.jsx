@@ -555,6 +555,14 @@ setFormData(prev => ({
 
 const columns = [
   {
+    header: '#',
+    render: (row, index) => (
+      <span className="text-gray-500 text-sm">
+        {(page - 1) * limit + index + 1}
+      </span>
+    )
+  },
+  {
     header: 'Invoice',
     render: (row) => (
       <div>

@@ -72,7 +72,7 @@ export default function DataTable({
                 >
                   {columns.map((column, colIdx) => (
                     <TableCell key={colIdx} className={column.cellClassName}>
-                      {column.render ? column.render(row) : row[column.accessor]}
+                      {column.render ? column.render(row, rowIdx) : row[column.accessor]}
                     </TableCell>
                   ))}
                 </TableRow>
