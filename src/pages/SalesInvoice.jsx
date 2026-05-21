@@ -35,7 +35,11 @@ import {
   X,
   Eye,
   Edit2,
-  Trash2
+  Trash2,
+  IndianRupee,
+  TrendingUp,
+  Clock,
+  CheckCircle
 } from 'lucide-react';
 import InvoicePrintView from '@/components/invoice/InvoicePrintView';
 import { format } from 'date-fns';
@@ -699,11 +703,17 @@ onClick={(e) => {
     }
 ];
 
-const filteredOrders = orders.filter(order =>
-  !searchQuery ||
-  order.order_id?.toString().includes(searchQuery) ||
-  order.client_name?.toLowerCase().includes(searchQuery.toLowerCase())
-);
+const filteredOrders = orders.filter(order => {
+  const matchesSearch =
+    !searchQuery ||
+    order.order_id?.toString().includes(searchQuery) ||
+    order.client_name?.toLowerCase().includes(searchQuery.toLowerCase());
+
+  const matchesFrom = !fromDate || order.order_date >= fromDate;
+  const matchesTo = !toDate || order.order_date <= toDate;
+
+  return matchesSearch && matchesFrom && matchesTo;
+});
 
   return (
     <div className="space-y-6">
@@ -713,16 +723,64 @@ const filteredOrders = orders.filter(order =>
           <h1 className="text-2xl md:text-3xl font-bold text-[#0F1724]">Sales Invoices</h1>
           <p className="text-gray-500 mt-1">Create and manage your sales invoices</p>
         </div>
-        <Button 
+        <Button
           className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-lg shadow-emerald-500/20"
           onClick={() => {
-  resetForm();
-  setShowForm(true);
-}}
+            resetForm();
+            setShowForm(true);
+          }}
         >
           <Plus className="w-4 h-4 mr-2" />
           New Invoice
         </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          {
+            title: 'Total Revenue',
+            value: formatCurrency(filteredOrders.reduce((sum, o) => sum + Number(o.grand_total || 0), 0)),
+            icon: TrendingUp,
+            iconBg: 'bg-indigo-100',
+            iconColor: 'text-indigo-600'
+          },
+          {
+            title: 'Total Invoices',
+            value: total,
+            icon: FileText,
+            iconBg: 'bg-violet-100',
+            iconColor: 'text-violet-600'
+          },
+          {
+            title: 'Total Paid',
+            value: formatCurrency(filteredOrders.reduce((sum, o) => sum + Number(o.paid || 0), 0)),
+            icon: CheckCircle,
+            iconBg: 'bg-emerald-100',
+            iconColor: 'text-emerald-600'
+          },
+          {
+            title: 'Total Due',
+            value: formatCurrency(filteredOrders.reduce((sum, o) => sum + Number(o.due || 0), 0)),
+            icon: Clock,
+            iconBg: 'bg-rose-100',
+            iconColor: 'text-rose-600'
+          },
+        ].map(({ title, value, icon: Icon, iconBg, iconColor }) => (
+          <Card key={title} className="border-0 shadow-[0_6px_18px_rgba(15,23,36,0.06)]">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl ${iconBg}`}>
+                  <Icon className={`w-5 h-5 ${iconColor}`} />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">{title}</p>
+                  <p className="text-xl font-bold text-[#0F1724] mt-0.5">{value}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 <div className="flex items-center gap-4 mb-4">
 

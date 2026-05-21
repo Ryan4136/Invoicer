@@ -90,28 +90,20 @@ const gstr1Data = {
 
   // GSTR-3B Summary
 const gstr3bData = {
-
   outwardTaxable: Number(summary.outward_taxable || 0),
-
   outputTax: Number(summary.output_tax || 0),
-
   inwardTaxable: Number(summary.inward_taxable || 0),
-
   inputTax: Number(summary.input_tax || 0),
-
   netPayable: Number(summary.net_payable || 0),
-
   interStateTaxable: Number(summary.interstate_taxable || 0),
-
   interStateIGST: Number(summary.interstate_igst || 0),
-
   intraStateTaxable: Number(summary.intrastate_taxable || 0),
-
   intraStateCGST: Number(summary.intrastate_cgst || 0),
-
   intraStateSGST: Number(summary.intrastate_sgst || 0),
+  inwardIGST: Number(summary.inward_igst || 0),
+  inwardCGST: Number(summary.inward_cgst || 0),
+  inwardSGST: Number(summary.inward_sgst || 0),
 };
-
   // HSN Summary (GSTR-1)
 
 
@@ -126,7 +118,7 @@ const gstr3bData = {
   // GSTR-1 Table Columns
   const b2bColumns = [
     { header: 'Invoice No', accessor: 'invoice_no' },
-    { header: 'Invoice Date', render: (row) => format(new Date(row.order_date), 'dd/MM/yyyy') },
+    { header: 'Invoice Date', render: (row) => row.order_date ? format(new Date(row.order_date), 'dd/MM/yyyy') : '-' },
     { header: 'Customer Name', accessor: 'client_name' },
     { header: 'GSTIN', accessor: 'clgstin', cellClassName: 'font-mono text-xs' },
     { header: 'Place of Supply', accessor: 'place_of_supply' },
@@ -137,7 +129,7 @@ const gstr3bData = {
 
   const b2cLargeColumns = [
     { header: 'Invoice No', accessor: 'invoice_no' },
-    { header: 'Invoice Date', render: (row) => format(new Date(row.order_date), 'dd/MM/yyyy') },
+    { header: 'Invoice Date', render: (row) => row.order_date ? format(new Date(row.order_date), 'dd/MM/yyyy') : '-' },
     { header: 'Place of Supply', accessor: 'place_of_supply' },
     { header: 'Invoice Value', render: (row) => formatCurrency(row.grand_total), cellClassName: 'text-right' },
     { header: 'Taxable Value', render: (row) => formatCurrency(row.taxable_amount), cellClassName: 'text-right' },
@@ -145,40 +137,16 @@ const gstr3bData = {
   ];
 
 const hsnColumns = [
-
-  {
-    header: 'GST Rate',
-    render: (row) => `${row.gst_rate}%`
-  },
-
-  {
-    header: 'Taxable Value',
-    render: (row) => formatCurrency(row.taxable_value),
-    cellClassName: 'text-right'
-  },
-
-  {
-    header: 'CGST',
-    render: (row) => formatCurrency(row.cgst),
-    cellClassName: 'text-right'
-  },
-
-  {
-    header: 'SGST',
-    render: (row) => formatCurrency(row.sgst),
-    cellClassName: 'text-right'
-  },
-
-  {
-    header: 'IGST',
-    render: (row) => formatCurrency(row.igst),
-    cellClassName: 'text-right'
-  },
-
-  {
-    header: 'Invoices',
-    accessor: 'invoices'
-  }
+  { header: 'HSN Code', accessor: 'hsn_code' },
+  { header: 'Description', accessor: 'description' },
+  { header: 'UQC', accessor: 'uqc' },
+  { header: 'Total Qty', accessor: 'total_quantity' },
+  { header: 'GST Rate', render: (row) => `${row.gst_rate}%` },
+  { header: 'Taxable Value', render: (row) => formatCurrency(row.taxable_value), cellClassName: 'text-right' },
+  { header: 'CGST', render: (row) => formatCurrency(row.cgst), cellClassName: 'text-right' },
+  { header: 'SGST', render: (row) => formatCurrency(row.sgst), cellClassName: 'text-right' },
+  { header: 'IGST', render: (row) => formatCurrency(row.igst), cellClassName: 'text-right' },
+  { header: 'Invoices', accessor: 'invoices' }
 ];
 
   return (
@@ -361,7 +329,7 @@ const hsnColumns = [
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-500">Total Taxable Value</p>
                   <p className="text-2xl font-bold text-[#0F1724]">
-                    {formatCurrency(gstr1Data.b2cSmall.reduce((s, i) => s + Number(i.taxable_amount || 0), 0))}
+                    {formatCurrency(gstr1Data.b2cSmall.reduce((s, i) => s + Number(i.vat || 0), 0))}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">
@@ -458,29 +426,29 @@ Number(i.igst_total || 0), 0
             <CardContent className="p-6">
               <div className="grid grid-cols-4 gap-4">
                 <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-gray-500">IGST</p>
-                  <p className="text-xl font-bold text-blue-600">
-                    {formatCurrency(purchaseInvoices.reduce((s, i) => s + Number(i.igst_total || 0), 0))}
-                  </p>
-                </div>
-                <div className="p-4 bg-emerald-50 rounded-lg">
-                  <p className="text-sm text-gray-500">CGST</p>
-                  <p className="text-xl font-bold text-emerald-600">
-                    {formatCurrency(gstr3bData.inputTax / 2)}
-                  </p>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <p className="text-sm text-gray-500">SGST</p>
-                  <p className="text-xl font-bold text-purple-600">
-                    {formatCurrency(gstr3bData.inputTax / 2)}
-                  </p>
-                </div>
-                <div className="p-4 bg-amber-50 rounded-lg">
-                  <p className="text-sm text-gray-500">Total ITC</p>
-                  <p className="text-xl font-bold text-amber-600">
-                    {formatCurrency(gstr3bData.inputTax)}
-                  </p>
-                </div>
+  <p className="text-sm text-gray-500">IGST</p>
+  <p className="text-xl font-bold text-blue-600">
+    {formatCurrency(gstr3bData.inwardIGST)}
+  </p>
+</div>
+<div className="p-4 bg-emerald-50 rounded-lg">
+  <p className="text-sm text-gray-500">CGST</p>
+  <p className="text-xl font-bold text-emerald-600">
+    {formatCurrency(gstr3bData.inwardCGST)}
+  </p>
+</div>
+<div className="p-4 bg-purple-50 rounded-lg">
+  <p className="text-sm text-gray-500">SGST</p>
+  <p className="text-xl font-bold text-purple-600">
+    {formatCurrency(gstr3bData.inwardSGST)}
+  </p>
+</div>
+<div className="p-4 bg-amber-50 rounded-lg">
+  <p className="text-sm text-gray-500">Total ITC</p>
+  <p className="text-xl font-bold text-amber-600">
+    {formatCurrency(gstr3bData.inputTax)}
+  </p>
+</div>
               </div>
             </CardContent>
           </Card>
