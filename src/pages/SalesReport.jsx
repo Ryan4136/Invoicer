@@ -34,7 +34,8 @@ import {
   TrendingUp,
   FileText,
   Users,
-  Filter
+  Filter,
+  Receipt
 } from 'lucide-react';
 import { ExportButton } from '@/components/ui/ExportImportButtons';
 import { format, startOfMonth, endOfMonth, subDays, parseISO  } from 'date-fns';
@@ -154,9 +155,20 @@ const filteredInvoices = invoices;
     sum + Number(inv.balance_due || inv.grand_total || 0),
   0
 );
-    
+      const taxableSales = filteredInvoices.reduce(
+  (sum, inv) =>
+    sum +
+    Number(
+      inv.taxable_amount ||
+      inv.total_amount ||
+      inv.sub_total ||
+      0
+    ),
+  0
+);
     return {
       totalSales,
+      taxableSales,
       totalTax,
       paidAmount,
       pendingAmount,
@@ -164,6 +176,7 @@ const filteredInvoices = invoices;
       avgInvoiceValue: filteredInvoices.length > 0 ? totalSales / filteredInvoices.length : 0
     };
   }, [filteredInvoices]);
+
 
   // Daily sales data for chart
   const dailySalesData = useMemo(() => {
@@ -396,6 +409,12 @@ const paymentStatusData = useMemo(() => {
           subtitle="GST Collected"
           gradient="from-blue-500 to-indigo-600"
         />
+        <StatsCard
+  title="Taxable Sales"
+  value={formatCurrency(stats.taxableSales)}
+  icon={Receipt}
+  gradient="from-cyan-500 to-blue-600"
+/>
         <StatsCard
           title="Received"
           value={formatCurrency(stats.paidAmount)}

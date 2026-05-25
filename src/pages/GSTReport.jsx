@@ -329,7 +329,12 @@ const hsnColumns = [
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-500">Total Taxable Value</p>
                   <p className="text-2xl font-bold text-[#0F1724]">
-                    {formatCurrency(gstr1Data.b2cSmall.reduce((s, i) => s + Number(i.vat || 0), 0))}
+                    {formatCurrency(
+  gstr1Data.b2cSmall.reduce(
+    (s, i) => s + Number(i.taxable_amount || i.total_amount || 0),
+    0
+  )
+)}
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">

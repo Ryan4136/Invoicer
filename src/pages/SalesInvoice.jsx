@@ -445,6 +445,7 @@ const orderPayload = {
   client_name: formData.customer_name,
   client_contact: "",
   sub_total: totals.subtotal,
+  taxable_amount: totals.taxable_amount,
   vat: totals.cgst_total + totals.sgst_total + totals.igst_total,
   total_amount: totals.taxable_amount,
   discount: totals.total_discount,
