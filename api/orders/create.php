@@ -122,7 +122,7 @@ $igst_total = $data['igst_total'] ?? 0;
 
 $stmt->bind_param(
 
-    "ssssdddddddddssiiii",
+    "ssssssssssssssssssiii",
 
     $invoice_no,
     $order_date,
