@@ -124,7 +124,16 @@ const gstr3bData = {
     { header: 'Place of Supply', accessor: 'place_of_supply' },
     { header: 'Invoice Value', render: (row) => formatCurrency(row.grand_total), cellClassName: 'text-right' },
     { header: 'Taxable Value', render: (row) => formatCurrency(row.taxable_amount), cellClassName: 'text-right' },
-    { header: 'Tax Amount', render: (row) => formatCurrency((row.cgst_total || 0) + (row.sgst_total || 0) + (row.igst_total || 0)), cellClassName: 'text-right' }
+    {
+  header: 'Tax Amount',
+  render: (row) =>
+    formatCurrency(
+      Number(row.cgst_total || 0) +
+      Number(row.sgst_total || 0) +
+      Number(row.igst_total || 0)
+    ),
+  cellClassName: 'text-right'
+}
   ];
 
   const b2cLargeColumns = [

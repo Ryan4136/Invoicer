@@ -5,9 +5,7 @@ require_once __DIR__ . "/../db_connect.php";
 $conn = new mysqli("localhost","root","","store");
 
 $data = json_decode(file_get_contents("php://input"), true);
-echo "<pre>";
-print_r($data);
-exit;
+
 // ✅ DEFINE IDS
 $companyId = $data['company_id'] ?? 1;
 $user_id   = $data['user_id'] ?? 1;
@@ -61,51 +59,113 @@ $company_id = $companyId;
 
 // 🔥 INSERT
 $stmt = $conn->prepare("
+
 INSERT INTO orders (
-  invoice_no,
-  order_date,
-  client_name,
-  client_contact,
-  sub_total,
-  vat,
-  total_amount,
-  discount,
-  grand_total,
-  paid,
-  due,
-  payment_type,
-  payment_status,
-  payment_place,
-  order_status,
-  user_id,
-  company_id
+
+    invoice_no,
+    order_date,
+    client_name,
+    client_contact,
+
+    sub_total,
+
+    taxable_amount,
+
+    vat,
+
+    cgst_total,
+
+    sgst_total,
+
+    igst_total,
+
+    total_amount,
+
+    discount,
+
+    grand_total,
+
+    paid,
+
+    due,
+
+    payment_type,
+
+    payment_status,
+
+    payment_place,
+
+    order_status,
+
+    user_id,
+
+    company_id
+
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+VALUES (
+
+    ?,?,?,?,?,?,?,?,?,?,
+    ?,?,?,?,?,?,?,?,?,?,?
+
+)
+
 ");
 
+$taxable_amount = $data['taxable_amount'] ?? $sub_total;
+
+$cgst_total = $data['cgst_total'] ?? ($vat / 2);
+
+$sgst_total = $data['sgst_total'] ?? ($vat / 2);
+
+$igst_total = $data['igst_total'] ?? 0;
+
 $stmt->bind_param(
-  "ssssssssssssssiii",
-  $invoice_no,
-  $order_date,
-  $client_name,
-  $client_contact,
-  $sub_total,
-  $vat,
-  $total_amount,
-  $discount,
-  $grand_total,
-  $paid,
-  $due,
-  $payment_type,
-  $payment_status,
-  $payment_place,
-  $order_status,
-  $user_id,
-  $company_id
+
+    "ssssdddddddddssiiii",
+
+    $invoice_no,
+    $order_date,
+    $client_name,
+    $client_contact,
+
+    $sub_total,
+
+    $taxable_amount,
+
+    $vat,
+
+    $cgst_total,
+
+    $sgst_total,
+
+    $igst_total,
+
+    $total_amount,
+
+    $discount,
+
+    $grand_total,
+
+    $paid,
+
+    $due,
+
+    $payment_type,
+
+    $payment_status,
+
+    $payment_place,
+
+    $order_status,
+
+    $user_id,
+
+    $company_id
+
 );
 
 $stmt->execute();
-
 // 🔥 UPDATE COUNTER
 $newCounter = $counter + 1;
 
@@ -121,9 +181,9 @@ $order_id = $conn->insert_id;
 $items = $data['items'] ?? [];
 
 foreach ($items as $item) {
-print_r($item);
-exit;
+
     // PRODUCT DETAILS
+    $productId = (int)($item['product_id'] ?? $item['id'] ?? 0);
     $productStmt = $conn->prepare("
 SELECT product_name, hsn, gst_rate
 FROM product
@@ -142,7 +202,7 @@ $product_name = $product['product_name'] ?? '';
 
 $hsn_code = $product['hsn'] ?? '';
 
-$gst_rate = (float)($product['gst_rate'] ?? 0);
+$gst_rate = (float)($item['gst_rate'] ?? $product['gst_rate'] ?? 0);
 
     // TAX CALCULATION
     $qty = (float)$item['quantity'];
@@ -153,13 +213,22 @@ $gst_rate = (float)($product['gst_rate'] ?? 0);
 
     $taxable_value = $qty * $rate;
 
-    $gst_amount = ($taxable_value * $gst_rate) / 100;
+$gst_amount = ($taxable_value * $gst_rate) / 100;
+
+$is_igst = (int)($data['is_igst'] ?? 0);
+
+if ($is_igst === 1) {
+
+    $cgst = 0;
+    $sgst = 0;
+    $igst = $gst_amount;
+
+} else {
 
     $cgst = $gst_amount / 2;
-
     $sgst = $gst_amount / 2;
-
     $igst = 0;
+}
 
     $total = $taxable_value + $gst_amount;
 

@@ -110,7 +110,7 @@ foreach ($sales as $sale) {
     $sheet->setCellValue("G$rowNo", 'No');
     $sheet->setCellValue("H$rowNo", 'Regular B2B');
     $sheet->setCellValue("I$rowNo", $sale['gst_rate']);
-    $sheet->setCellValue("J$rowNo", $sale['sub_total']);
+    $sheet->setCellValue("J$rowNo", $sale['taxable_amount']);
 
     $sheet->setCellValue(
         "K$rowNo",
@@ -209,7 +209,7 @@ if (strlen(trim($gstin)) === 15) {
 
     $b2csSheet->setCellValue(
         "D$rowNo",
-        $sale['sub_total']
+        $sale['taxable_amount']
     );
 
     $b2csSheet->setCellValue(
