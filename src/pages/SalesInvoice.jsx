@@ -168,7 +168,7 @@ useEffect(() => {
 
       const data = JSON.parse(text);
 
-      const normalized = data.map(c => ({
+      const normalized = data.data.map(c => ({
         id: c.id,
         name: c.name || "Unnamed",
         phone: c.phone || "",
@@ -224,9 +224,11 @@ const deleteMutation = useMutation({
 
     return await res.json();
   },
-  onSuccess: () => {
-    setOrders(prev => prev.filter(o => o.order_id !== deletingId));
-  }
+onSuccess: (_, orderId) => {
+  setOrders(prev =>
+    prev.filter(o => o.order_id !== orderId)
+  );
+}
 });
 
   // Calculate totals when items change
@@ -385,10 +387,10 @@ const openInvoice = async (row) => {
       items: mappedItems,
 
       subtotal: Number(row.sub_total),
-      taxable_amount: Number(row.sub_total),
-      cgst_total: Number(row.vat) / 2,
-      sgst_total: Number(row.vat) / 2,
-      igst_total: 0,
+      taxable_amount: Number(row.taxable_amount || 0),
+cgst_total: Number(row.cgst_total || 0),
+sgst_total: Number(row.sgst_total || 0),
+igst_total: Number(row.igst_total || 0),  
       round_off: 0
     });
 
@@ -446,7 +448,11 @@ const orderPayload = {
   client_contact: "",
   sub_total: totals.subtotal,
   vat: totals.cgst_total + totals.sgst_total + totals.igst_total,
-  total_amount: totals.taxable_amount,
+  total_amount:
+  totals.taxable_amount +
+  totals.cgst_total +
+  totals.sgst_total +
+  totals.igst_total,
   discount: totals.total_discount,
   grand_total: totals.grand_total,
   paid: 0,
@@ -519,7 +525,7 @@ resetForm();
   const isInterState =
     order.customer_state_code &&
     order.customer_state_code !== companyState;
-
+const orderItems = order.items || [];
   const mappedItems = orderItems.map(item => {
     const taxable =
       item.quantity * item.rate - (item.discount || 0);
